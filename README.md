@@ -3,7 +3,7 @@ Domoticz plugin writen in Python to support Velux blinds using Tahoma/Connexoon
 
 To use this plugin you need to install the last stable release of Domoticz https://www.domoticz.com and to install the required python library.
 
-Installation
+## Installation
 
 Python version 3.4 or higher required & Domoticz version 4.10717 or greater. To install:
 
