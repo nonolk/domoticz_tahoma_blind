@@ -13,4 +13,4 @@ Run: git clone https://github.com/nonolk/domoticz_tahoma_blind.git
 
 Restart Domoticz with sudo systemctl restart domoticz.
 
-In the web UI, navigate to the Hardware page. In the hardware dropdown there will be an entry called "Tahoma or conexoon IO blind plugin".
+In the web UI, navigate to the Hardware page. In the hardware dropdown list there will be an entry called "Tahoma or conexoon IO blind plugin".
