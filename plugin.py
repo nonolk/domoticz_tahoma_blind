@@ -124,6 +124,7 @@ class BasePlugin:
             return
 
           self.devices = json.loads(strData)
+          Domoticz.Log(str(strData))
 
           self.filtered_devices = list()
           for device in self.devices:
