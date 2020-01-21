@@ -29,7 +29,6 @@ class BasePlugin:
         self.srvaddr = "tahomalink.com"
         self.cookie = ""
         self.logged_in = False
-        self.startup = True
         self.heartbeat = False
         self.devices = None
         self.filtred_devices = None
@@ -131,7 +130,7 @@ class BasePlugin:
              if (device["uiClass"] == "RollerShutter"):
                self.filtered_devices.append(device)
 
-          if (len(Devices) == 0 and self.startup):
+          if (len(Devices) == 0):
             count = 1
             for device in self.filtered_devices:
                Domoticz.Status("Creating device: "+device["label"])
@@ -141,7 +140,7 @@ class BasePlugin:
                  Domoticz.Error("Device creation error please allow new devices")
                  break
 
-          if ((len(Devices) < len(self.filtered_devices)) and len(Devices) != 0 and self.startup):
+          if ((len(Devices) < len(self.filtered_devices)) and len(Devices) != 0):
             Domoticz.Log("New device(s) detected")
             found = False
 
@@ -163,7 +162,6 @@ class BasePlugin:
                else:
                   found = False
 
-          self.startup = False
 
           for dev in Devices:
              for device in self.filtered_devices:
