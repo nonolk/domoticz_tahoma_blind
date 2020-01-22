@@ -3,7 +3,7 @@
 # Author: Nonolk, 2019
 #
 """
-<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="1.0">
+<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="1.0.1">
     <description>Tahoma/Conexoon plugin for IO blinds, this plugin require internet connexion.<br/>Please provide your email and password used to connect Tahoma/Conexoon</description>
     <params>
         <param field="Username" label="Username" width="200px" required="true" default=""/>
@@ -29,6 +29,7 @@ class BasePlugin:
         self.srvaddr = "tahomalink.com"
         self.cookie = ""
         self.logged_in = False
+        self.startup = True
         self.heartbeat = False
         self.devices = None
         self.filtred_devices = None
@@ -124,14 +125,13 @@ class BasePlugin:
             return
 
           self.devices = json.loads(strData)
-          Domoticz.Log(str(strData))
 
           self.filtered_devices = list()
           for device in self.devices:
-             if (device["uiClass"] == "RollerShutter"):
+             if ((device["uiClass"] == "RollerShutter") or (device["uiClass"] == "ExteriorScreen")):
                self.filtered_devices.append(device)
 
-          if (len(Devices) == 0):
+          if (len(Devices) == 0 and self.startup):
             count = 1
             for device in self.filtered_devices:
                Domoticz.Status("Creating device: "+device["label"])
@@ -141,7 +141,7 @@ class BasePlugin:
                  Domoticz.Error("Device creation error please allow new devices")
                  break
 
-          if ((len(Devices) < len(self.filtered_devices)) and len(Devices) != 0):
+          if ((len(Devices) < len(self.filtered_devices)) and len(Devices) != 0 and self.startup):
             Domoticz.Log("New device(s) detected")
             found = False
 
@@ -163,6 +163,7 @@ class BasePlugin:
                else:
                   found = False
 
+          self.startup = False
 
           for dev in Devices:
              for device in self.filtered_devices:
