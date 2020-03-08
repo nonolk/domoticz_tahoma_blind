@@ -3,7 +3,7 @@
 # Author: Nonolk, 2019
 #
 """
-<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="1.0.1">
+<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="1.0.2">
     <description>Tahoma/Conexoon plugin for IO blinds, this plugin require internet connexion.<br/>Please provide your email and password used to connect Tahoma/Conexoon</description>
     <params>
         <param field="Username" label="Username" width="200px" required="true" default=""/>
@@ -135,11 +135,8 @@ class BasePlugin:
             count = 1
             for device in self.filtered_devices:
                Domoticz.Status("Creating device: "+device["label"])
-               if (Domoticz.Device(Name=str(device["label"]), Unit=count,Type=244, Subtype=73, Switchtype=16, DeviceID=device["deviceURL"]).Create()):
-                 count += 1
-               else:
-                 Domoticz.Error("Device creation error please allow new devices")
-                 break
+               Domoticz.Device(Name=device["label"], Unit=count,Type=244, Subtype=73, Switchtype=16, DeviceID=device["deviceURL"]).Create()
+               count += 1
 
           if ((len(Devices) < len(self.filtered_devices)) and len(Devices) != 0 and self.startup):
             Domoticz.Log("New device(s) detected")
@@ -154,12 +151,8 @@ class BasePlugin:
                     break
                if (not found):
                  Domoticz.Status("Must create device: "+device["label"])
-                 UnitID = UnitID + idx
-                 if (Domoticz.Device(Name=str(device["label"]), Unit=UnitID, Type=244, Subtype=73, Switchtype=16, DeviceID=device["deviceURL"]).Create()):
-                   idx +=1
-                 else:
-                   Domoticz.Error("Device not created please allow new devices")
-                   break
+                 Domoticz.Device(Name=device["label"], Unit=UnitID, Type=244, Subtype=73, Switchtype=16, DeviceID=device["deviceURL"]).Create()
+                 idx +=1
                else:
                   found = False
 
@@ -183,7 +176,7 @@ class BasePlugin:
                       if (Devices[dev].sValue):
                         int_level = int(Devices[dev].sValue)
                       else:
-                        int_level = 100
+                        int_level = 0
                       if (level != int_level):
 
                         Domoticz.Log("Updating device:"+Devices[dev].Name)
@@ -197,7 +190,7 @@ class BasePlugin:
         elif (Status == 200 and (not self.heartbeat)):
           return
         else:
-          Domoticz.Error("Exiting")
+          Domoticz.Log("Return status"+Status)
 
     def onCommand(self, Unit, Command, Level, Hue):
         commands_serialized = []
