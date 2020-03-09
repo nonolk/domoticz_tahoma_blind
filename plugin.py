@@ -3,7 +3,7 @@
 # Author: Nonolk, 2019
 #
 """
-<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="1.0.2">
+<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="1.0.3" externallink="https://github.com/nonolk/domoticz_tahoma_blind">
     <description>Tahoma/Conexoon plugin for IO blinds, this plugin require internet connexion.<br/>Please provide your email and password used to connect Tahoma/Conexoon</description>
     <params>
         <param field="Username" label="Username" width="200px" required="true" default=""/>
@@ -190,7 +190,7 @@ class BasePlugin:
         elif (Status == 200 and (not self.heartbeat)):
           return
         else:
-          Domoticz.Log("Return status"+Status)
+          Domoticz.Log("Return status"+str(Status))
 
     def onCommand(self, Unit, Command, Level, Hue):
         commands_serialized = []
