@@ -1,9 +1,9 @@
 # Tahoma/Conexoon IO blind plugin
 #
-# Author: Nonolk, 2019
-#
+# Author: Nonolk, 2019-2020
+# FirstFree function courtesy of @moroen https://github.com/moroen/IKEA-Tradfri-plugin
 """
-<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="1.0.3" externallink="https://github.com/nonolk/domoticz_tahoma_blind">
+<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="1.0.4" externallink="https://github.com/nonolk/domoticz_tahoma_blind">
     <description>Tahoma/Conexoon plugin for IO blinds, this plugin require internet connexion.<br/>Please provide your email and password used to connect Tahoma/Conexoon</description>
     <params>
         <param field="Username" label="Username" width="200px" required="true" default=""/>
@@ -128,7 +128,8 @@ class BasePlugin:
 
           self.filtered_devices = list()
           for device in self.devices:
-             if ((device["uiClass"] == "RollerShutter") or (device["uiClass"] == "ExteriorScreen")):
+             Domoticz.Debug("Device name: "+device["label"]+" Device lass: "+device["uiClass"])
+             if ((device["uiClass"] == "RollerShutter") or (device["uiClass"] == "ExteriorScreen") or (device["uiClass"] == "Screen") or (device["uiClass"] == "Awning") or (device["uiClass"] == "Pergola") or (device["uiClass"] == "GarageDoor") or (device["uiClass"] == "Window") or (device["uiClass"] == "VenetianBlind") or (device["uiClass"] == "ExteriorVenetianBlind")):
                self.filtered_devices.append(device)
 
           if (len(Devices) == 0 and self.startup):
@@ -136,13 +137,16 @@ class BasePlugin:
             for device in self.filtered_devices:
                Domoticz.Status("Creating device: "+device["label"])
                Domoticz.Device(Name=device["label"], Unit=count,Type=244, Subtype=73, Switchtype=16, DeviceID=device["deviceURL"]).Create()
-               count += 1
+               if not (count in Devices):
+                   Domoticz.Error("Device creation not allowed, please allow device creation")
+               else:
+                   Domoticz.Status("Device created: "+device["label"])
+                   count += 1
 
           if ((len(Devices) < len(self.filtered_devices)) and len(Devices) != 0 and self.startup):
             Domoticz.Log("New device(s) detected")
             found = False
 
-            idx = 1
             for device in self.filtered_devices:
                for dev in Devices:
                   UnitID = Devices[dev].Unit
@@ -150,9 +154,13 @@ class BasePlugin:
                     found = True
                     break
                if (not found):
+                 idx = firstFree()
                  Domoticz.Status("Must create device: "+device["label"])
-                 Domoticz.Device(Name=device["label"], Unit=UnitID, Type=244, Subtype=73, Switchtype=16, DeviceID=device["deviceURL"]).Create()
-                 idx +=1
+                 Domoticz.Device(Name=device["label"], Unit=idx, Type=244, Subtype=73, Switchtype=16, DeviceID=device["deviceURL"]).Create()
+                 if not (idx in Devices):
+                     Domoticz.Error("Device creation not allowed, please allow device creation")
+                 else:
+                     Domoticz.Status("New device created: "+device["label"])
                else:
                   found = False
 
@@ -228,9 +236,6 @@ class BasePlugin:
           self.actions_serialized = []
 
 
-    def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
-        Domoticz.Log("Notification: " + Name + "," + Subject + "," + Text + "," + Status + "," + str(Priority) + "," + Sound + "," + ImageFile)
-
     def onDisconnect(self, Connection):
         return
 
@@ -281,10 +286,6 @@ def onCommand(Unit, Command, Level, Hue):
     global _plugin
     _plugin.onCommand(Unit, Command, Level, Hue)
 
-def onNotification(Name, Subject, Text, Status, Priority, Sound, ImageFile):
-    global _plugin
-    _plugin.onNotification(Name, Subject, Text, Status, Priority, Sound, ImageFile)
-
 def onDisconnect(Connection):
     global _plugin
     _plugin.onDisconnect(Connection)
@@ -325,3 +326,9 @@ def DumpHTTPResponseToLog(httpResp, level=0):
             Domoticz.Debug(indentStr + "['" + x + "']")
     else:
         Domoticz.Debug(indentStr + ">'" + x + "':'" + str(httpResp[x]) + "'")
+
+def firstFree():
+    for num in range(1, 250):
+        if num not in Devices:
+            return num
+    return
