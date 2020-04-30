@@ -3,6 +3,10 @@ Domoticz plugin writen in Python to support Velux roller shutters using Tahoma/C
 
 To use this plugin you need to install the last stable release of Domoticz https://www.domoticz.com and to install the required python library.
 
+The plugin currently support the following device types: roller Shutters, screens (interior/exterior), awning, pergolas, garage door, windows and blinds(postions only, no slats control).
+
+This plugins use some from https://github.com/moroen/IKEA-Tradfri-plugin, thanks @moroen for the first free function.
+
 ## Installation
 
 Python version 3.4 or higher required & Domoticz version 4.10717 or greater. To install:
