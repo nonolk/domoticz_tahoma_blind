@@ -3,7 +3,7 @@
 # Author: Nonolk, 2019-2020
 # FirstFree function courtesy of @moroen https://github.com/moroen/IKEA-Tradfri-plugin
 """
-<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="1.0.4" externallink="https://github.com/nonolk/domoticz_tahoma_blind">
+<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="1.0.5" externallink="https://github.com/nonolk/domoticz_tahoma_blind">
     <description>Tahoma/Conexoon plugin for IO blinds, this plugin require internet connexion.<br/>Please provide your email and password used to connect Tahoma/Conexoon</description>
     <params>
         <param field="Username" label="Username" width="200px" required="true" default=""/>
@@ -121,22 +121,30 @@ class BasePlugin:
           strData = Data["Data"].decode("utf-8", "ignore")
 
           if (not "uiClass" in strData):
-            Domoticz.Log(str(strData))
+            Domoticz.Debug(str(strData))
             return
 
           self.devices = json.loads(strData)
 
           self.filtered_devices = list()
           for device in self.devices:
-             Domoticz.Debug("Device name: "+device["label"]+" Device lass: "+device["uiClass"])
-             if ((device["uiClass"] == "RollerShutter") or (device["uiClass"] == "ExteriorScreen") or (device["uiClass"] == "Screen") or (device["uiClass"] == "Awning") or (device["uiClass"] == "Pergola") or (device["uiClass"] == "GarageDoor") or (device["uiClass"] == "Window") or (device["uiClass"] == "VenetianBlind") or (device["uiClass"] == "ExteriorVenetianBlind")):
+             Domoticz.Debug("Device name: "+device["label"]+" Device class: "+device["uiClass"])
+             if (((device["uiClass"] == "RollerShutter") or (device["uiClass"] == "ExteriorScreen") or (device["uiClass"] == "Screen") or (device["uiClass"] == "Awning") or (device["uiClass"] == "Pergola") or (device["uiClass"] == "GarageDoor") or (device["uiClass"] == "Window") or (device["uiClass"] == "VenetianBlind") or (device["uiClass"] == "ExteriorVenetianBlind")) and ((device["deviceURL"].startswith("io://")) or (device["deviceURL"].startswith("rts://")))):
                self.filtered_devices.append(device)
 
           if (len(Devices) == 0 and self.startup):
             count = 1
             for device in self.filtered_devices:
                Domoticz.Status("Creating device: "+device["label"])
-               Domoticz.Device(Name=device["label"], Unit=count,Type=244, Subtype=73, Switchtype=16, DeviceID=device["deviceURL"]).Create()
+               swtype = None
+               
+               if (device["deviceURL"].startswith("io://")):
+                    swtype = 16
+               elif (device["deviceURL"].startswith("rts://")):
+                    swtype = 6
+          
+               Domoticz.Device(Name=device["label"], Unit=count, Type=244, Subtype=73, Switchtype=swtype, DeviceID=device["deviceURL"]).Create()
+               
                if not (count in Devices):
                    Domoticz.Error("Device creation not allowed, please allow device creation")
                else:
@@ -155,8 +163,17 @@ class BasePlugin:
                     break
                if (not found):
                  idx = firstFree()
+                 swtype = None
+                 
                  Domoticz.Status("Must create device: "+device["label"])
-                 Domoticz.Device(Name=device["label"], Unit=idx, Type=244, Subtype=73, Switchtype=16, DeviceID=device["deviceURL"]).Create()
+                 
+                 if (device["deviceURL"].startswith("io://")):
+                    swtype = 16
+                 elif (device["deviceURL"].startswith("rts://")):
+                    swtype = 6
+          
+                 Domoticz.Device(Name=device["label"], Unit=idx, Type=244, Subtype=73, Switchtype=swtype, DeviceID=device["deviceURL"]).Create()
+
                  if not (idx in Devices):
                      Domoticz.Error("Device creation not allowed, please allow device creation")
                  else:
@@ -169,7 +186,7 @@ class BasePlugin:
           for dev in Devices:
              for device in self.filtered_devices:
 
-               if Devices[dev].DeviceID == device["deviceURL"]:
+               if (Devices[dev].DeviceID == device["deviceURL"]) and (device["deviceURL"].startswith("io://")):
                  level = 0
                  status_l = False
                  status = None
