@@ -345,7 +345,6 @@ def get_events(self):
 def update_devices_status(self,Updated_devices):
     for dev in Devices:
        for device in Updated_devices:
-         Domoticz.Log(str(Devices[dev].SwitchType))
 
          if (Devices[dev].DeviceID == device["deviceURL"]) and (device["deviceURL"].startswith("io://")):
            level = 0
