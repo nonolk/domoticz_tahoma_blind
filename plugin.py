@@ -361,7 +361,7 @@ def update_devices_status(self,Updated_devices):
 
            for state in states:
 
-              if ((state["name"] == "core:ClosureState") or ((state["name"] == "core:DeploymentState")):
+              if ((state["name"] == "core:ClosureState") or (state["name"] == "core:DeploymentState")):
                 level = int(state["value"])
 
                 if (int(Devices[dev].SwitchType) != 13):
