@@ -221,10 +221,7 @@ class BasePlugin:
         elif ("Set Level" in str(Command)):
           commands["name"] = "setClosure"
 
-        if (int(Devices[Unit].SwitchType) == 13):
-            tmp = int(Level)
-        else:
-            tmp = 100 - int(Level)
+        tmp = 100 - int(Level)
         params.append(tmp)
         commands["parameters"] = params
 
@@ -363,8 +360,7 @@ def update_devices_status(self,Updated_devices):
               if ((state["name"] == "core:ClosureState") or (state["name"] == "core:DeploymentState")):
                 level = int(state["value"])
 
-                if (int(Devices[dev].SwitchType) != 13):
-                    level = 100 - level
+                level = 100 - level
                 status_l = True
               if status_l:
                 if (Devices[dev].sValue):
