@@ -20,3 +20,10 @@ Run: git clone https://github.com/nonolk/domoticz_tahoma_blind.git
 Restart Domoticz with sudo systemctl restart domoticz.
 
 In the web UI, navigate to the Hardware page. In the hardware dropdown list there will be an entry called "Tahoma or conexoon IO blind plugin".
+
+## Issues:
+
+You may see the following error in Domoticz logs:
+Async Secure Read Exception: 336151548, sslv3 alert bad record mac
+
+Do not open an issue for this, it's coming from corrupted packets received and I can nothing about it.
