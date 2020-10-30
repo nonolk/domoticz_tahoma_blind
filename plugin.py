@@ -3,7 +3,7 @@
 # Author: Nonolk, 2019-2020
 # FirstFree function courtesy of @moroen https://github.com/moroen/IKEA-Tradfri-plugin
 """
-<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="1.0.5" externallink="https://github.com/nonolk/domoticz_tahoma_blind">
+<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="2.0.0" externallink="https://github.com/nonolk/domoticz_tahoma_blind">
     <description>Tahoma/Conexoon plugin for IO blinds, this plugin require internet connexion.<br/>Please provide your email and password used to connect Tahoma/Conexoon</description>
     <params>
         <param field="Username" label="Username" width="200px" required="true" default=""/>
@@ -21,6 +21,7 @@
 import Domoticz
 import urllib.parse
 import json
+import sys
 
 class BasePlugin:
     enabled = False
@@ -28,11 +29,13 @@ class BasePlugin:
         self.httpConn = None
         self.srvaddr = "tahomalink.com"
         self.cookie = ""
+        self.listenerId = None
         self.logged_in = False
         self.startup = True
         self.heartbeat = False
         self.devices = None
-        self.filtred_devices = None
+        self.filtered_devices = None
+        self.events = None
         self.heartbeat_delay = 1
         self.con_delay = 0
         self.wait_delay = 30
@@ -55,21 +58,13 @@ class BasePlugin:
 
     def onConnect(self, Connection, Status, Description):
 
-
         if (Status == 0 and not self.logged_in):
-          Login = str(Parameters["Username"])
-          pwd = str(Parameters["Password"])
-          Headers = { 'Host': self.srvaddr,"Connection": "keep-alive","Accept-Encoding": "gzip, deflate", "Accept": "*/*", "Content-Type": "application/x-www-form-urlencoded"}
-          postData = "userId="+urllib.parse.quote(Login)+"&userPassword="+urllib.parse.quote(pwd)+""
-          self.httpConn.Send({'Verb':'POST', 'Headers': Headers, 'URL':'/enduser-mobile-web/enduserAPI/login', 'Data': postData})
-        elif (self.cookie and self.logged_in and self.heartbeat and (not self.command)):
-          self.refresh = True
-          Headers = { 'Host': self.srvaddr,"Connection": "keep-alive","Accept-Encoding": "gzip, deflate", "Accept": "*/*", "Content-Type": "application/json", "Cookie": self.cookie}
-          self.httpConn.Send({'Verb':'POST', 'Headers': Headers, 'URL':'/enduser-mobile-web/enduserAPI/setup/devices/states/refresh', 'Data': None})
+          tahoma_login(self)
+        elif (self.cookie and self.logged_in and (not self.command)):
+          get_events(self)
+
         elif (self.command):
-          Headers = { 'Host': self.srvaddr,"Connection": "keep-alive","Accept-Encoding": "gzip, deflate", "Accept": "*/*", "Content-Type": "application/json", "Cookie": self.cookie}
-          self.httpConn.Send({'Verb':'POST', 'Headers': Headers, 'URL':'/enduser-mobile-web/enduserAPI/exec/apply', 'Data': self.json_data})
-          Domoticz.Log("Processing command")
+          tahoma_command(self)
           self.command = False
           self.heartbeat = False
           self.actions_serialized = []
@@ -85,39 +80,39 @@ class BasePlugin:
           Domoticz.Status("Tahoma auth succeed")
           tmp = Data["Headers"]
           self.cookie = tmp["Set-Cookie"]
+          register_listener(self)
 
-        elif (Status == 401):
+        elif ((Status == 401) or (Status == 400)):
           strData = Data["Data"].decode("utf-8", "ignore")
-          Domoticz.Error("Tahoma auth error")
+          Domoticz.Error("Tahoma error must reconnect")
           self.logged_in = False
           self.cookie = None
+          self.listenerId = None
 
           if ("Too many" in strData):
             Domoticz.Error("Too much connexions must wait")
             self.heartbeat = True
             return
           if ("Bad credentials" in strData):
-            Domoticz.Error("Bad credentials please update credentials and restart device")
+            Domoticz.Error("Bad credentials please update credentials and restart plugin")
             self.heartbeat =  False
             return
 
           if (not self.logged_in):
-            Login = str(Parameters["Username"])
-            pwd = str(Parameters["Password"])
-            Headers = { 'Host': self.srvaddr,"Connection": "keep-alive","Accept-Encoding": "gzip, deflate", "Accept": "*/*", "Content-Type": "application/x-www-form-urlencoded"}
-            postData = "userId="+urllib.parse.quote(Login)+"&userPassword="+urllib.parse.quote(pwd)+""
-            self.httpConn.Send({'Verb':'POST', 'Headers': Headers, 'URL':'/enduser-mobile-web/enduserAPI/login', 'Data': postData})
+            tahoma_login(self)
+            return
 
-          self.heartbeat_delay = 0
-          return
+        elif (Status == 200 and self.logged_in and (not self.listenerId)):
+            strData = Data["Data"].decode("utf-8", "ignore")
+            id = json.loads(strData)
+            self.listenerId = id['id']
+            Domoticz.Status("Tahoma listener registred")
+            self.refresh = False
+            Domoticz.Status("Check setup status at statup")
+            Headers = { 'Host': self.srvaddr,"Connection": "keep-alive","Accept-Encoding": "gzip, deflate", "Accept": "*/*", "Content-Type": "application/x-www-form-urlencoded", "Cookie": self.cookie}
+            self.httpConn.Send({'Verb':'GET', 'Headers': Headers, 'URL':'/enduser-mobile-web/enduserAPI/setup/devices'})
 
-        elif (Status == 200 and self.logged_in and self.heartbeat and self.refresh):
-          self.refresh = False
-          Headers = { 'Host': self.srvaddr,"Connection": "keep-alive","Accept-Encoding": "gzip, deflate", "Accept": "*/*", "Content-Type": "application/x-www-form-urlencoded", "Cookie": self.cookie}
-          self.httpConn.Send({'Verb':'GET', 'Headers': Headers, 'URL':'/enduser-mobile-web/enduserAPI/setup/devices'})
-          return
-
-        elif (Status == 200 and self.logged_in and self.heartbeat and (not self.refresh)):
+        elif (Status == 200 and self.logged_in and self.startup and (not self.refresh)):
           strData = Data["Data"].decode("utf-8", "ignore")
 
           if (not "uiClass" in strData):
@@ -137,14 +132,17 @@ class BasePlugin:
             for device in self.filtered_devices:
                Domoticz.Status("Creating device: "+device["label"])
                swtype = None
-               
+
                if (device["deviceURL"].startswith("io://")):
+                   if (device["uiClass"] == "Awning"):
+                    swtype = 13
+                   else:
                     swtype = 16
                elif (device["deviceURL"].startswith("rts://")):
                     swtype = 6
-          
+
                Domoticz.Device(Name=device["label"], Unit=count, Type=244, Subtype=73, Switchtype=swtype, DeviceID=device["deviceURL"]).Create()
-               
+
                if not (count in Devices):
                    Domoticz.Error("Device creation not allowed, please allow device creation")
                else:
@@ -164,14 +162,17 @@ class BasePlugin:
                if (not found):
                  idx = firstFree()
                  swtype = None
-                 
+
                  Domoticz.Status("Must create device: "+device["label"])
-                 
+
                  if (device["deviceURL"].startswith("io://")):
-                    swtype = 16
+                    if (device["uiClass"] == "Awning"):
+                     swtype = 13
+                    else:
+                     swtype = 16
                  elif (device["deviceURL"].startswith("rts://")):
                     swtype = 6
-          
+
                  Domoticz.Device(Name=device["label"], Unit=idx, Type=244, Subtype=73, Switchtype=swtype, DeviceID=device["deviceURL"]).Create()
 
                  if not (idx in Devices):
@@ -180,38 +181,27 @@ class BasePlugin:
                      Domoticz.Status("New device created: "+device["label"])
                else:
                   found = False
-
+          update_devices_status(self,self.filtered_devices)
           self.startup = False
 
-          for dev in Devices:
-             for device in self.filtered_devices:
+        elif (Status == 200 and self.logged_in and self.heartbeat and (not self.startup)):
+            strData = Data["Data"].decode("utf-8", "ignore")
 
-               if (Devices[dev].DeviceID == device["deviceURL"]) and (device["deviceURL"].startswith("io://")):
-                 level = 0
-                 status_l = False
-                 status = None
-                 states = device["states"]
-                 for state in states:
+            if (not "DeviceStateChangedEvent" in strData):
+              Domoticz.Debug(str(strData))
+              return
 
-                    if state["name"] == "core:ClosureState":
-                      level = state["value"]
-                      level = 100 - level
-                      status_l = True
-                    if status_l:
-                      if (Devices[dev].sValue):
-                        int_level = int(Devices[dev].sValue)
-                      else:
-                        int_level = 0
-                      if (level != int_level):
+            self.events = json.loads(strData)
 
-                        Domoticz.Log("Updating device:"+Devices[dev].Name)
-                        if (level == 0):
-                          Devices[dev].Update(0,"0")
-                        if (level == 100):
-                          Devices[dev].Update(1,"100")
-                        if (level != 0 and level != 100):
-                          Devices[dev].Update(2,str(level))
-                        break
+            if (self.events):
+                filtered_events = list()
+
+                for event in self.events:
+                    if (event["name"] == "DeviceStateChangedEvent"):
+                        filtered_events.append(event)
+
+                update_devices_status(self,filtered_events)
+
         elif (Status == 200 and (not self.heartbeat)):
           return
         else:
@@ -230,9 +220,10 @@ class BasePlugin:
           commands["name"] = "open"
         elif ("Set Level" in str(Command)):
           commands["name"] = "setClosure"
-          tmp = 100 - int(Level)
-          params.append(tmp)
-          commands["parameters"] = params
+
+        tmp = 100 - int(Level)
+        params.append(tmp)
+        commands["parameters"] = params
 
         commands_serialized.append(commands)
         action["deviceURL"] = Devices[Unit].DeviceID
@@ -246,9 +237,7 @@ class BasePlugin:
           self.command = True
           self.httpConn.Connect()
         else:
-          Headers = { 'Host': self.srvaddr,"Connection": "keep-alive","Accept-Encoding": "gzip, deflate", "Accept": "*/*", "Content-Type": "application/json", "Cookie": self.cookie}
-          self.httpConn.Send({'Verb':'POST', 'Headers': Headers, 'URL':'/enduser-mobile-web/enduserAPI/exec/apply', 'Data': self.json_data})
-          Domoticz.Log("Sending command to tahoma api")
+          tahoma_command(self)
           self.heartbeat = False
           self.actions_serialized = []
 
@@ -257,17 +246,13 @@ class BasePlugin:
         return
 
     def onHeartbeat(self):
-        if (self.cookie and self.logged_in and ((not self.heartbeat) or self.heartbeat_delay == 3)):
+
+        if (self.cookie and self.logged_in and (not self.startup)):
           if (not self.httpConn.Connected()):
             self.httpConn.Connect()
           else:
-            Headers = { 'Host': self.srvaddr,"Connection": "keep-alive","Accept-Encoding": "gzip, deflate", "Accept": "*/*", "Content-Type": "application/json", "Cookie": self.cookie}
-            self.httpConn.Send({'Verb':'POST', 'Headers': Headers, 'URL':'/enduser-mobile-web/enduserAPI/setup/devices/states/refresh', 'Data': None})
+            get_events(self)
           self.heartbeat =True
-          self.heartbeat_delay = 1
-
-        elif (self.heartbeat and (self.heartbeat_delay <= 2) and self.logged_in):
-          self.heartbeat_delay += 1
 
         elif (self.heartbeat and (self.con_delay < self.wait_delay) and (not self.logged_in)):
           self.con_delay +=1
@@ -277,7 +262,6 @@ class BasePlugin:
           if (not self.httpConn.Connected()):
             self.httpConn.Connect()
           self.heartbeat =True
-          self.heartbeat_delay = 0
           self.con_delay = 0
 
 global _plugin
@@ -348,4 +332,68 @@ def firstFree():
     for num in range(1, 250):
         if num not in Devices:
             return num
+    return
+
+def get_events(self):
+    Headers = { 'Host': self.srvaddr,"Connection": "keep-alive","Accept-Encoding": "gzip, deflate", "Accept": "*/*", "Content-Type": "application/json", "Cookie": self.cookie}
+    self.httpConn.Send({'Verb':'POST', 'Headers': Headers, 'URL':'/enduser-mobile-web/enduserAPI/events/'+self.listenerId+'/fetch', 'Data': None})
+    return
+
+def update_devices_status(self,Updated_devices):
+    for dev in Devices:
+       for device in Updated_devices:
+
+         if (Devices[dev].DeviceID == device["deviceURL"]) and (device["deviceURL"].startswith("io://")):
+           level = 0
+           status_l = False
+           status = None
+
+           if (self.startup):
+               states = device["states"]
+           else:
+               states = device["deviceStates"]
+               if (device["name"] != "DeviceStateChangedEvent"):
+                   break
+
+           for state in states:
+
+              if ((state["name"] == "core:ClosureState") or (state["name"] == "core:DeploymentState")):
+                level = int(state["value"])
+
+                level = 100 - level
+                status_l = True
+              if status_l:
+                if (Devices[dev].sValue):
+                  int_level = int(Devices[dev].sValue)
+                else:
+                  int_level = 0
+                if (level != int_level):
+
+                  Domoticz.Log("Updating device:"+Devices[dev].Name)
+                  if (level == 0):
+                    Devices[dev].Update(0,"0")
+                  if (level == 100):
+                    Devices[dev].Update(1,"100")
+                  if (level != 0 and level != 100):
+                    Devices[dev].Update(2,str(level))
+                  break
+    return
+
+def tahoma_login(self):
+    Login = str(Parameters["Username"])
+    pwd = str(Parameters["Password"])
+    Headers = { 'Host': self.srvaddr,"Connection": "keep-alive","Accept-Encoding": "gzip, deflate", "Accept": "*/*", "Content-Type": "application/x-www-form-urlencoded"}
+    postData = "userId="+urllib.parse.quote(Login)+"&userPassword="+urllib.parse.quote(pwd)+""
+    self.httpConn.Send({'Verb':'POST', 'Headers': Headers, 'URL':'/enduser-mobile-web/enduserAPI/login', 'Data': postData})
+    return
+
+def tahoma_command(self):
+    Headers = { 'Host': self.srvaddr,"Connection": "keep-alive","Accept-Encoding": "gzip, deflate", "Accept": "*/*", "Content-Type": "application/json", "Cookie": self.cookie}
+    self.httpConn.Send({'Verb':'POST', 'Headers': Headers, 'URL':'/enduser-mobile-web/enduserAPI/exec/apply', 'Data': self.json_data})
+    Domoticz.Log("Sending command to tahoma api")
+    return
+
+def register_listener(self):
+    Headers = { 'Host': self.srvaddr,"Connection": "keep-alive","Accept-Encoding": "gzip, deflate", "Accept": "*/*", "Content-Type": "application/json", "Cookie": self.cookie}
+    self.httpConn.Send({'Verb':'POST', 'Headers': Headers, 'URL':'/enduser-mobile-web/enduserAPI/events/register', 'Data': None})
     return
