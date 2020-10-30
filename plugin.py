@@ -3,7 +3,7 @@
 # Author: Nonolk, 2019-2020
 # FirstFree function courtesy of @moroen https://github.com/moroen/IKEA-Tradfri-plugin
 """
-<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="2.0.beta" externallink="https://github.com/nonolk/domoticz_tahoma_blind">
+<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="2.0.0" externallink="https://github.com/nonolk/domoticz_tahoma_blind">
     <description>Tahoma/Conexoon plugin for IO blinds, this plugin require internet connexion.<br/>Please provide your email and password used to connect Tahoma/Conexoon</description>
     <params>
         <param field="Username" label="Username" width="200px" required="true" default=""/>
@@ -82,9 +82,9 @@ class BasePlugin:
           self.cookie = tmp["Set-Cookie"]
           register_listener(self)
 
-        elif (Status == 401):
+        elif ((Status == 401) or (Status == 400)):
           strData = Data["Data"].decode("utf-8", "ignore")
-          Domoticz.Error("Tahoma auth error")
+          Domoticz.Error("Tahoma error must reconnect")
           self.logged_in = False
           self.cookie = None
           self.listenerId = None
