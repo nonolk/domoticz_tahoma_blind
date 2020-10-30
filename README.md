@@ -25,7 +25,7 @@ In the web UI, navigate to the Hardware page. In the hardware dropdown list ther
 
 ## Issues:
 
-You may see the following error in Domoticz logs:
-Async Secure Read Exception: 336151548, sslv3 alert bad record mac
-
+You may see the following error in Domoticz logs:  
+*Async Secure Read Exception: 336151548, sslv3 alert bad record mac*
+  
 Do not open an issue for this, it's coming from corrupted packets received and I can nothing about it.
