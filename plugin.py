@@ -3,7 +3,7 @@
 # Author: Nonolk, 2019-2020
 # FirstFree function courtesy of @moroen https://github.com/moroen/IKEA-Tradfri-plugin
 """
-<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="2.0.0" externallink="https://github.com/nonolk/domoticz_tahoma_blind">
+<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="2.0.1" externallink="https://github.com/nonolk/domoticz_tahoma_blind">
     <description>Tahoma/Conexoon plugin for IO blinds, this plugin require internet connexion.<br/>Please provide your email and password used to connect Tahoma/Conexoon</description>
     <params>
         <param field="Username" label="Username" width="200px" required="true" default=""/>
@@ -220,10 +220,9 @@ class BasePlugin:
           commands["name"] = "open"
         elif ("Set Level" in str(Command)):
           commands["name"] = "setClosure"
-
-        tmp = 100 - int(Level)
-        params.append(tmp)
-        commands["parameters"] = params
+          tmp = 100 - int(Level)
+          params.append(tmp)
+          commands["parameters"] = params
 
         commands_serialized.append(commands)
         action["deviceURL"] = Devices[Unit].DeviceID
