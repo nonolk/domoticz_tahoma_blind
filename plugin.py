@@ -3,7 +3,7 @@
 # Author: Nonolk, 2019-2020
 # FirstFree function courtesy of @moroen https://github.com/moroen/IKEA-Tradfri-plugin
 """
-<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="2.0.1" externallink="https://github.com/nonolk/domoticz_tahoma_blind">
+<plugin key="tahomaIO" name="Tahoma or conexoon IO blind plugin" author="nonolk" version="2.0.2" externallink="https://github.com/nonolk/domoticz_tahoma_blind">
     <description>Tahoma/Conexoon plugin for IO blinds, this plugin require internet connexion.<br/>Please provide your email and password used to connect Tahoma/Conexoon</description>
     <params>
         <param field="Username" label="Username" width="200px" required="true" default=""/>
@@ -355,12 +355,13 @@ def update_devices_status(self,Updated_devices):
                    break
 
            for state in states:
+              status_l = False
 
               if ((state["name"] == "core:ClosureState") or (state["name"] == "core:DeploymentState")):
                 level = int(state["value"])
-
                 level = 100 - level
                 status_l = True
+                
               if status_l:
                 if (Devices[dev].sValue):
                   int_level = int(Devices[dev].sValue)
@@ -375,7 +376,6 @@ def update_devices_status(self,Updated_devices):
                     Devices[dev].Update(1,"100")
                   if (level != 0 and level != 100):
                     Devices[dev].Update(2,str(level))
-                  break
     return
 
 def tahoma_login(self):
